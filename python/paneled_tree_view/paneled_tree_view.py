@@ -1,10 +1,8 @@
 # -*- coding: utf-8 -*-
+import random
 from collections import OrderedDict
 import qtawesome
 from mayaqt import *
-
-# ロール
-# color_role = 
 
 # アイコン定義
 dir_icon = qtawesome.icon('fa5s.{}'.format('folder'), color='lightgray')
@@ -23,18 +21,17 @@ text_color = QtGui.QColor(*[210]*3)
 sub_text_color = QtGui.QColor(*[160]*3)
 err_text_color = QtGui.QColor(255, 30, 30)
 deactive_text_color = QtGui.QColor(*[30]*3)
-separator_color = QtGui.QColor(*[62]*3)
+default_tag_color = QtGui.QColor(*[73]*3)
 selected_panel_color = QtGui.QColor(82, 133, 166)
 selected_text_color = QtGui.QColor(*[255]*3)
 
-
 class SampleData(object):
-    def __init__(self, value=('temp', 'temp1'), attribute1=0, attribute2=1, active=True):
+    def __init__(self, value=('temp', 'temp1'), attribute1=0, attribute2=1):
         self.value = value
         self.r = 0
         self.attribute1 = attribute1
         self.attribute2 = attribute2
-        self.active = active
+        self.color = random.randint(80, 255), random.randint(80, 255), random.randint(80, 255)
         self.headers = 'value', 'attribute1', 'attribute2'
 
 class TreeItem(object):
@@ -80,6 +77,17 @@ class TreeItem(object):
 
         return 0
 
+    def get_color(self):
+        color = None
+
+        # if self.parent_item:
+        #     color = self.parent_item.get_color()
+
+        if not color and hasattr(self.item_data, 'color'):
+            color = self.item_data.color
+
+        return color
+
 class TreeModel(QtCore.QAbstractItemModel):
 
     def __init__(self, parent=None, item_class=TreeItem, headers=[]):
@@ -103,8 +111,14 @@ class TreeModel(QtCore.QAbstractItemModel):
         if role == QtCore.Qt.DisplayRole:
             return item.data(column)
 
-        # if role == QtCore.Qt.DecorationRole:
-        #     return dir_icon
+        if role == QtCore.Qt.BackgroundRole:
+            color = item.get_color()
+
+            if color:
+                return QtGui.QColor(*color)
+
+            else:
+                return default_tag_color
 
         return None
 
@@ -165,7 +179,7 @@ class PanelItemDelegate(QtWidgets.QStyledItemDelegate):
     
     def __init__(self, parent=None):
         super(PanelItemDelegate, self).__init__(parent)
-        self.height = 28
+        self.height = 32
         self.panel_space_width = 0
         self.panel_space_height = 1
         self.text_space_width = 0
@@ -174,20 +188,8 @@ class PanelItemDelegate(QtWidgets.QStyledItemDelegate):
         self.indent = 0
         self.panel_color = panel_color
         self.text_color = text_color
-
-    def _get_panel_rect(self, painter, option, index):
-        '''
-        アイテム描画矩形を取得
-        元のものより一回り小さいものを返す
-        '''
-        rect = QtCore.QRect(
-            option.rect.left() + self.panel_space_width,
-            option.rect.top() + self.panel_space_height,
-            option.rect.width() - self.panel_space_width,
-            option.rect.height() - self.panel_space_height
-        )
-
-        return rect
+        self.odd_darker_factor = 7
+        self.depth_darker_factor = 12
 
     def _get_depth(self, painter, option, index):
         parent = index.parent()
@@ -202,6 +204,22 @@ class PanelItemDelegate(QtWidgets.QStyledItemDelegate):
 
         return depth
 
+    def _get_panel_rect(self, painter, option, index, in_depth):
+        '''
+        アイテム描画矩形を取得
+        元のものより一回り小さいものを返す
+        '''
+        indent = self.indent * in_depth
+
+        rect = QtCore.QRect(
+            option.rect.left() + self.panel_space_width + indent,
+            option.rect.top() + self.panel_space_height,
+            option.rect.width() - self.panel_space_width,
+            option.rect.height() - self.panel_space_height
+        )
+
+        return rect
+
     def _draw_bg(self, painter, option, index, in_rect, in_selected, in_expanded, in_depth):
         '''
         背景描画
@@ -211,10 +229,9 @@ class PanelItemDelegate(QtWidgets.QStyledItemDelegate):
         
         row = index.row()
         parent = index.parent()
-        indentation = self.indent * in_depth
 
         rect = QtCore.QRect(
-            in_rect.left() + indentation,
+            in_rect.left(),
             in_rect.top(),
             in_rect.width(),
             in_rect.height()
@@ -227,9 +244,9 @@ class PanelItemDelegate(QtWidgets.QStyledItemDelegate):
             color = self.panel_color
 
         if row % 2:
-            color = color.darker(110)
+            color = color.darker(100 + self.odd_darker_factor)
 
-        color = color.darker(100 + in_depth * 15)
+        color = color.darker(100 + in_depth * self.depth_darker_factor)
 
         # 通常背景描画
         brush = QtGui.QBrush(color)
@@ -263,15 +280,14 @@ class PanelItemDelegate(QtWidgets.QStyledItemDelegate):
         row = index.row()
         value = self._get_value(painter, option, index)
         color = self.text_color
-        indentation = self.indent * in_depth
 
         if row % 2:
-            color = color.darker(110)
+            color = color.darker(100 + self.odd_darker_factor)
 
-        color = color.darker(100 + in_depth * 15)
+        color = color.darker(100 + in_depth * self.depth_darker_factor)
 
         rect = QtCore.QRect(
-            in_rect.left() + indentation + self.text_space_width,
+            in_rect.left() + self.text_space_width,
             in_rect.top(),
             in_rect.width(),
             in_rect.height()
@@ -286,7 +302,7 @@ class PanelItemDelegate(QtWidgets.QStyledItemDelegate):
         selected = option.state & QtWidgets.QStyle.State_Selected
         parent = index.parent()
         depth = self._get_depth(painter, option, index)
-        rect = self._get_panel_rect(painter, option, index)
+        rect = self._get_panel_rect(painter, option, index, depth)
 
         # 背景描画
         self._draw_bg(painter, option, index, rect, selected, expanded, depth)
@@ -312,17 +328,6 @@ class ValueColumnDelegate(PanelItemDelegate):
         self.text_space_width = self.height * 0.6
         self.text_align = QtCore.Qt.AlignVCenter | QtCore.Qt.AlignLeft
 
-    def _get_tag_color(self, index):
-        item = index.internalPointer()
-
-        if hasattr(item, 'color') and hasattr(item.color, '__iter__'):
-            color = QtGui.QColor(item.color)
-
-        else:
-            color = err_text_color
-
-        return color
-
     def _draw_tag(self, painter, option, index, in_rect, in_selected, in_expanded, in_depth):
         rect = QtCore.QRect(
             self.indent * in_depth + self.tag_space_width,
@@ -331,7 +336,8 @@ class ValueColumnDelegate(PanelItemDelegate):
             in_rect.height()
         )
 
-        color = self._get_tag_color(index)
+        color = index.data(QtCore.Qt.BackgroundRole)
+        color = color.darker(100 + in_depth * self.depth_darker_factor)
         brush = QtGui.QBrush(color)
         pen = QtGui.QPen(transparency_color)
         painter.setBrush(brush)
@@ -353,7 +359,7 @@ class ValueColumnDelegate(PanelItemDelegate):
                 pixmap = right_icon.pixmap(size)
 
             rect = QtCore.QRect(
-                in_rect.left() + self.indent * in_depth,
+                in_rect.left(),
                 in_rect.top() + (option.rect.height() * (1/5.0)),
                 height,
                 height
