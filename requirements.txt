@@ -1,0 +1,1 @@
+mayaqt @ git+https://github.com/kissiy179/mayaqt.git
