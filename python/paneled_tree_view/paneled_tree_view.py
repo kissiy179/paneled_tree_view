@@ -123,14 +123,12 @@ class TreeModel(QtCore.QAbstractItemModel):
         return None
 
     def headerData(self, column, orientation=QtCore.Qt.Horizontal, role=QtCore.Qt.DisplayRole):
-        if(orientation == QtCore.Qt.Horizontal) and role == QtCore.Qt.DisplayRole:
+        if role == QtCore.Qt.DisplayRole:
             return ''
             return self.root_item.headers[column]
 
-        # if(orientation == QtCore.Qt.Horizontal) and role == QtCore.Qt.DecorationRole:
+        # elif role == QtCore.Qt.DecorationRole:
         #     return checked_icon
-
-        # return None
 
     def index(self, row, column, parent):
         if not self.hasIndex(row, column, parent):
@@ -434,7 +432,8 @@ class PaneledTreeView(QtWidgets.QTreeView):
         self.setStyleSheet(style)
         delegate = PanelItemDelegate()
         self.setItemDelegate(delegate)
-        self.setAutoExpandDelay(1)
+        # self.setAutoExpandDelay(2)
+        self.setAnimated(True)
 
 
     def setModel(self, model):
