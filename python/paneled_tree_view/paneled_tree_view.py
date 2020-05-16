@@ -3,13 +3,21 @@ from collections import OrderedDict
 import qtawesome
 from mayaqt import *
 
+# ロール
+# color_role = 
+
 # アイコン定義
 dir_icon = qtawesome.icon('fa5s.{}'.format('folder'), color='lightgray')
 checked_icon = qtawesome.icon('fa5s.{}'.format('check-square'), color='lightgray')
+unchecked_icon = qtawesome.icon('fa5s.{}'.format('square'), color='lightgray')
+down_icon = qtawesome.icon('fa5s.{}'.format('angle-down'), color='lightgray')
+down_icon = qtawesome.icon('fa5s.{}'.format('caret-down'), color='lightgray')
+right_icon = qtawesome.icon('fa5s.{}'.format('angle-right'), color='lightgray')
+right_icon = qtawesome.icon('fa5s.{}'.format('caret-right'), color='lightgray')
 
 # 色定義
 transparency_color = QtGui.QColor(*[0]*4)
-shadow_color = QtGui.QColor(0,0,0, 60)
+shadow_color = QtGui.QColor(0,0,0, 70)
 panel_color = QtGui.QColor(*[86]*3)
 text_color = QtGui.QColor(*[210]*3)
 sub_text_color = QtGui.QColor(*[160]*3)
@@ -194,7 +202,7 @@ class PanelItemDelegate(QtWidgets.QStyledItemDelegate):
 
         return depth
 
-    def _draw_bg(self, painter, option, index, in_left, in_rect, in_selected, in_depth):
+    def _draw_bg(self, painter, option, index, in_rect, in_selected, in_expanded, in_depth):
         '''
         背景描画
         '''
@@ -251,8 +259,7 @@ class PanelItemDelegate(QtWidgets.QStyledItemDelegate):
         value = ' : '.join(value)
         return value
 
-    def _draw_text(self, painter, option, index, in_left, in_rect, in_selected, in_depth):
-        # 入力がリストの場合特殊処理
+    def _draw_text(self, painter, option, index, in_rect, in_selected, in_expanded, in_depth):
         row = index.row()
         value = self._get_value(painter, option, index)
         color = self.text_color
@@ -275,16 +282,19 @@ class PanelItemDelegate(QtWidgets.QStyledItemDelegate):
         painter.drawText(rect, self.text_align, value)
 
     def paint(self, painter, option, index):
+        expanded = option.state & QtWidgets.QStyle.State_Open
         selected = option.state & QtWidgets.QStyle.State_Selected
         parent = index.parent()
         depth = self._get_depth(painter, option, index)
         rect = self._get_panel_rect(painter, option, index)
 
         # 背景描画
-        self._draw_bg(painter, option, index, 0, rect, selected, depth)
+        self._draw_bg(painter, option, index, rect, selected, expanded, depth)
 
-        # draw text
-        self._draw_text(painter, option, index, 0, rect, selected, depth)
+        # テキスト描画
+        self._draw_text(painter, option, index, rect, selected, expanded, depth)
+
+        return rect, selected, expanded, depth
 
     def sizeHint(self, option, index):
         rect = option.rect
@@ -294,10 +304,71 @@ class ValueColumnDelegate(PanelItemDelegate):
 
     def __init__(self, parent=None):
         super(ValueColumnDelegate, self).__init__(parent)
+        # self.height = 80
+        self.tag_width = 8
+        self.tag_space_width = 2
         self.indent = 12
+        self.panel_space_width = self.tag_width + self.tag_space_width
+        self.text_space_width = self.height * 0.6
         self.text_align = QtCore.Qt.AlignVCenter | QtCore.Qt.AlignLeft
-        self.panel_space_width = 2
-        self.text_space_width = 10
+
+    def _get_tag_color(self, index):
+        item = index.internalPointer()
+
+        if hasattr(item, 'color') and hasattr(item.color, '__iter__'):
+            color = QtGui.QColor(item.color)
+
+        else:
+            color = err_text_color
+
+        return color
+
+    def _draw_tag(self, painter, option, index, in_rect, in_selected, in_expanded, in_depth):
+        rect = QtCore.QRect(
+            self.indent * in_depth + self.tag_space_width,
+            in_rect.top(),
+            self.tag_width,
+            in_rect.height()
+        )
+
+        color = self._get_tag_color(index)
+        brush = QtGui.QBrush(color)
+        pen = QtGui.QPen(transparency_color)
+        painter.setBrush(brush)
+        painter.setPen(pen)
+        painter.drawRect(rect)
+
+    def _draw_expand_icon(self, painter, option, index, in_rect, in_selected, in_expanded, in_depth):
+        item = index.internalPointer()
+        row_count = item.child_count()
+        
+        if row_count:
+            height = in_rect.height() * (3/5.0)
+            size = QtCore.QSize(height, height)
+
+            if in_expanded:
+                pixmap = down_icon.pixmap(size)
+
+            else:
+                pixmap = right_icon.pixmap(size)
+
+            rect = QtCore.QRect(
+                in_rect.left() + self.indent * in_depth,
+                in_rect.top() + (option.rect.height() * (1/5.0)),
+                height,
+                height
+            )
+
+            painter.drawPixmap(rect, pixmap)
+
+    def paint(self, painter, option, index):
+        rect, selected, expanded, depth = super(ValueColumnDelegate, self).paint(painter, option, index)
+
+        # タグ描画
+        self._draw_tag(painter, option, index, rect, selected, expanded, depth)
+
+        # 展開アイコン描画
+        self._draw_expand_icon(painter, option, index, rect, selected, expanded, depth)
 
 style = '''
 QTreeView::branch {
@@ -405,6 +476,10 @@ def show():
             for k in range(5):
                 item__ = TreeItem(SampleData())
                 item_.add_child(item__)
+
+                for l in range(3):
+                    item___ = TreeItem(SampleData())
+                    item__.add_child(item___)
 
     vlo.addWidget(view)
     win.resize(400, 200)
