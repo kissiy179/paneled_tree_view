@@ -25,20 +25,20 @@ default_tag_color = QtGui.QColor(*[73]*3)
 selected_panel_color = QtGui.QColor(82, 133, 166)
 selected_text_color = QtGui.QColor(*[255]*3)
 
-class SampleData(object):
+class AbstractPanelItemData(object):
     def __init__(self, value=('temp', 'temp1'), attribute1=0, attribute2=1):
         self.value = value
-        self.r = 0
         self.attribute1 = attribute1
         self.attribute2 = attribute2
-        self.color = random.randint(80, 255), random.randint(80, 255), random.randint(80, 255)
-        self.headers = 'value', 'attribute1', 'attribute2'
+        self.color = random.randint(60, 255), random.randint(60, 255), random.randint(60, 255)
+        self.headers = 'value', 'attribute1', 'attribute2', 'color'
 
-class TreeItem(object):
+class PanelItem(object):
     
-    def __init__(self, item_data=SampleData()):
+    def __init__(self, item_data=AbstractPanelItemData()):
         self.item_data = item_data
         self.parent_item = None
+        self.inherit_color = True # 親の色を引き継ぐ
 
         if hasattr(self.item_data, 'headers'):
             self.headers = self.item_data.headers
@@ -77,21 +77,27 @@ class TreeItem(object):
 
         return 0
 
-    def get_color(self):
+    def color(self):
+        '''
+        カラーを取得
+        inherit_colorがTrueの場合親オブジェクトから色を引き継ぐ
+        '''
         color = None
 
-        # if self.parent_item:
-        #     color = self.parent_item.get_color()
+        # parent_itemがない場合スキップすることでルートアイテムの色は判定しないようにする
+        if self.inherit_color and self.parent_item:
+            color = self.parent_item.color()
 
-        if not color and hasattr(self.item_data, 'color'):
-            color = self.item_data.color
+            # 格納されたデータクラスがcolorを持っていれば返す
+            if not color and hasattr(self.item_data, 'color'):
+                color = self.item_data.color
 
         return color
 
-class TreeModel(QtCore.QAbstractItemModel):
+class PanelItemModel(QtCore.QAbstractItemModel):
 
-    def __init__(self, parent=None, item_class=TreeItem, headers=[]):
-        super(TreeModel, self).__init__(parent)
+    def __init__(self, parent=None, item_class=PanelItem, headers=[]):
+        super(PanelItemModel, self).__init__(parent)
         self.root_item = item_class()
 
     def columnCount(self, parent=None):
@@ -112,7 +118,7 @@ class TreeModel(QtCore.QAbstractItemModel):
             return item.data(column)
 
         if role == QtCore.Qt.BackgroundRole:
-            color = item.get_color()
+            color = item.color()
 
             if color:
                 return QtGui.QColor(*color)
@@ -467,23 +473,23 @@ def show():
     win.setLayout(vlo)
 
     view = PaneledTreeView()
-    model = TreeModel()
+    model = PanelItemModel()
     view.setModel(model)
 
     for i in range(100):
-        item = TreeItem(SampleData())
+        item = PanelItem(AbstractPanelItemData())
         model.root_item.add_child(item)
 
         for j in range(2):
-            item_ = TreeItem(SampleData())
+            item_ = PanelItem(AbstractPanelItemData())
             item.add_child(item_)
 
             for k in range(5):
-                item__ = TreeItem(SampleData())
+                item__ = PanelItem(AbstractPanelItemData())
                 item_.add_child(item__)
 
                 for l in range(3):
-                    item___ = TreeItem(SampleData())
+                    item___ = PanelItem(AbstractPanelItemData())
                     item__.add_child(item___)
 
     vlo.addWidget(view)
