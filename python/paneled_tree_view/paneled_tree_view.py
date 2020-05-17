@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+import os
 import random
 from collections import OrderedDict
 import qtawesome
@@ -265,10 +266,10 @@ class PanelItemDelegate(QtWidgets.QStyledItemDelegate):
         
         # 入力がリストの場合文字列に変換
         if hasattr(value, '__iter__'):
-            value = [str(value_) for value_ in value]
+            value = [unicode(value_) for value_ in value]
 
         else:
-            value = [str(value)]
+            value = [unicode(value)]
 
         value = ' : '.join(value)
         return value
@@ -295,6 +296,7 @@ class PanelItemDelegate(QtWidgets.QStyledItemDelegate):
         painter.drawText(rect, self.text_align, value)
 
     def paint(self, painter, option, index):
+        has_children = option.state & QtWidgets.QStyle.State_Children
         expanded = option.state & QtWidgets.QStyle.State_Open
         selected = option.state & QtWidgets.QStyle.State_Selected
         parent = index.parent()
@@ -307,7 +309,7 @@ class PanelItemDelegate(QtWidgets.QStyledItemDelegate):
         # テキスト描画
         self._draw_text(painter, option, index, rect, selected, expanded, depth)
 
-        return rect, selected, expanded, depth
+        return rect, selected, expanded, depth, has_children
 
     def sizeHint(self, option, index):
         rect = option.rect
@@ -339,6 +341,9 @@ class ValueColumnDelegate(PanelItemDelegate):
                 color = parent.data(QtCore.Qt.BackgroundRole)
                 parent = parent.parent()
 
+        if not color:
+            color = default_tag_color
+
         return color
 
     def _draw_tag(self, painter, option, index, in_rect, in_selected, in_expanded, in_depth):
@@ -350,7 +355,6 @@ class ValueColumnDelegate(PanelItemDelegate):
         )
 
         color = self._get_color(index)
-        # color = index.data(QtCore.Qt.BackgroundRole)
         color = color.darker(100 + in_depth * self.depth_darker_factor)
         brush = QtGui.QBrush(color)
         pen = QtGui.QPen(transparency_color)
@@ -358,11 +362,9 @@ class ValueColumnDelegate(PanelItemDelegate):
         painter.setPen(pen)
         painter.drawRect(rect)
 
-    def _draw_expand_icon(self, painter, option, index, in_rect, in_selected, in_expanded, in_depth):
-        item = index.internalPointer()
-        row_count = item.child_count()
+    def _draw_expand_icon(self, painter, option, index, in_rect, in_selected, in_has_children, in_expanded, in_depth):
         
-        if row_count:
+        if in_has_children:
             height = in_rect.height() * (3/5.0)
             size = QtCore.QSize(height, height)
 
@@ -382,13 +384,13 @@ class ValueColumnDelegate(PanelItemDelegate):
             painter.drawPixmap(rect, pixmap)
 
     def paint(self, painter, option, index):
-        rect, selected, expanded, depth = super(ValueColumnDelegate, self).paint(painter, option, index)
+        rect, selected, expanded, depth, has_children = super(ValueColumnDelegate, self).paint(painter, option, index)
 
         # タグ描画
         self._draw_tag(painter, option, index, rect, selected, expanded, depth)
 
         # 展開アイコン描画
-        self._draw_expand_icon(painter, option, index, rect, selected, expanded, depth)
+        self._draw_expand_icon(painter, option, index, rect, selected, has_children, expanded, depth)
 
 style = '''
 QTreeView::branch {
@@ -451,7 +453,6 @@ class PaneledTreeView(QtWidgets.QTreeView):
         # self.setAutoExpandDelay(2)
         self.setAnimated(True)
 
-
     def setModel(self, model):
         super(PaneledTreeView, self).setModel(model)
         # self.set_headers()
@@ -483,23 +484,26 @@ def show():
 
     view = PaneledTreeView()
     model = PanelItemModel()
+    model = QtWidgets.QFileSystemModel()
+    root_dir = os.path.realpath(os.path.join(__file__, '..', '..', '..'))
+    index = model.setRootPath(root_dir)
     view.setModel(model)
 
-    for i in range(100):
-        item = PanelItem(AbstractPanelItemData(value=__file__))
-        model.root_item.add_child(item)
+    # for i in range(100):
+    #     item = PanelItem(AbstractPanelItemData(value=__file__))
+    #     model.root_item.add_child(item)
 
-        for j in range(2):
-            item_ = PanelItem(AbstractPanelItemData(value=__file__))
-            item.add_child(item_)
+    #     for j in range(2):
+    #         item_ = PanelItem(AbstractPanelItemData(value=__file__))
+    #         item.add_child(item_)
 
-            for k in range(5):
-                item__ = PanelItem(AbstractPanelItemData(value=__file__))
-                item_.add_child(item__)
+    #         for k in range(5):
+    #             item__ = PanelItem(AbstractPanelItemData(value=__file__))
+    #             item_.add_child(item__)
 
-                for l in range(3):
-                    item___ = PanelItem(AbstractPanelItemData(value=__file__))
-                    item__.add_child(item___)
+    #             for l in range(3):
+    #                 item___ = PanelItem(AbstractPanelItemData(value=__file__))
+    #                 item__.add_child(item___)
 
     vlo.addWidget(view)
     win.resize(400, 200)
