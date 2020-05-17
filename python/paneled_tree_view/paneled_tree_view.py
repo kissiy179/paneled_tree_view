@@ -38,7 +38,6 @@ class PanelItem(object):
     def __init__(self, item_data=AbstractPanelItemData()):
         self.item_data = item_data
         self.parent_item = None
-        self.inherit_color = True # 親の色を引き継ぐ
 
         if hasattr(self.item_data, 'headers'):
             self.headers = self.item_data.headers
@@ -80,19 +79,10 @@ class PanelItem(object):
     def color(self):
         '''
         カラーを取得
-        inherit_colorがTrueの場合親オブジェクトから色を引き継ぐ
         '''
-        color = None
-
-        # parent_itemがない場合スキップすることでルートアイテムの色は判定しないようにする
-        if self.inherit_color and self.parent_item:
-            color = self.parent_item.color()
-
-            # 格納されたデータクラスがcolorを持っていれば返す
-            if not color and hasattr(self.item_data, 'color'):
-                color = self.item_data.color
-
-        return color
+        # 格納されたデータクラスがcolorを持っていれば返す
+        if hasattr(self.item_data, 'color'):
+            return self.item_data.color
 
 class PanelItemModel(QtCore.QAbstractItemModel):
 
@@ -271,10 +261,13 @@ class PanelItemDelegate(QtWidgets.QStyledItemDelegate):
         return rect.left() + rect.width()
 
     def _get_value(self, painter, option, index):
-        # 入力がリストの場合特殊処理
         value = index.data(QtCore.Qt.DisplayRole)
         
-        if not hasattr(value, '__iter__'):
+        # 入力がリストの場合文字列に変換
+        if hasattr(value, '__iter__'):
+            value = [str(value_) for value_ in value]
+
+        else:
             value = [str(value)]
 
         value = ' : '.join(value)
@@ -331,6 +324,22 @@ class ValueColumnDelegate(PanelItemDelegate):
         self.panel_space_width = self.tag_width + self.tag_space_width
         self.text_space_width = self.height * 0.6
         self.text_align = QtCore.Qt.AlignVCenter | QtCore.Qt.AlignLeft
+        self.inherit_color = True
+
+    def _get_color(self, index):
+        color = color = index.data(QtCore.Qt.BackgroundRole)
+        parent = index.parent()
+
+        # parent_itemがない場合スキップすることでルートアイテムの色は判定しないようにする
+        if self.inherit_color and parent.isValid():
+            while True:
+                if not parent.isValid():
+                    break
+                
+                color = parent.data(QtCore.Qt.BackgroundRole)
+                parent = parent.parent()
+
+        return color
 
     def _draw_tag(self, painter, option, index, in_rect, in_selected, in_expanded, in_depth):
         rect = QtCore.QRect(
@@ -340,7 +349,8 @@ class ValueColumnDelegate(PanelItemDelegate):
             in_rect.height()
         )
 
-        color = index.data(QtCore.Qt.BackgroundRole)
+        color = self._get_color(index)
+        # color = index.data(QtCore.Qt.BackgroundRole)
         color = color.darker(100 + in_depth * self.depth_darker_factor)
         brush = QtGui.QBrush(color)
         pen = QtGui.QPen(transparency_color)
@@ -437,7 +447,7 @@ class PaneledTreeView(QtWidgets.QTreeView):
         self.setSelectionMode(QtWidgets.QAbstractItemView.ExtendedSelection)
         self.setStyleSheet(style)
         delegate = PanelItemDelegate()
-        self.setItemDelegate(delegate)
+        # self.setItemDelegate(delegate)
         # self.setAutoExpandDelay(2)
         self.setAnimated(True)
 
@@ -477,19 +487,19 @@ def show():
     view.setModel(model)
 
     for i in range(100):
-        item = PanelItem(AbstractPanelItemData())
+        item = PanelItem(AbstractPanelItemData(value=__file__))
         model.root_item.add_child(item)
 
         for j in range(2):
-            item_ = PanelItem(AbstractPanelItemData())
+            item_ = PanelItem(AbstractPanelItemData(value=__file__))
             item.add_child(item_)
 
             for k in range(5):
-                item__ = PanelItem(AbstractPanelItemData())
+                item__ = PanelItem(AbstractPanelItemData(value=__file__))
                 item_.add_child(item__)
 
                 for l in range(3):
-                    item___ = PanelItem(AbstractPanelItemData())
+                    item___ = PanelItem(AbstractPanelItemData(value=__file__))
                     item__.add_child(item___)
 
     vlo.addWidget(view)
