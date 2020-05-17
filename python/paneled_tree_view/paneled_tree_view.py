@@ -15,7 +15,7 @@ right_icon = qtawesome.icon('fa5s.{}'.format('caret-right'), color='lightgray')
 
 # 色定義
 transparency_color = QtGui.QColor(*[0]*4)
-shadow_color = QtGui.QColor(0,0,0, 70)
+shadow_color = QtGui.QColor(0,0,0, 50)
 panel_color = QtGui.QColor(*[86]*3)
 text_color = QtGui.QColor(*[210]*3)
 sub_text_color = QtGui.QColor(*[160]*3)
@@ -320,7 +320,7 @@ class ValueColumnDelegate(PanelItemDelegate):
         # self.height = 80
         self.tag_width = 8
         self.tag_space_width = 2
-        self.indent = 12
+        self.indent = 10
         self.panel_space_width = self.tag_width + self.tag_space_width
         self.text_space_width = self.height * 0.6
         self.text_align = QtCore.Qt.AlignVCenter | QtCore.Qt.AlignLeft
@@ -447,7 +447,7 @@ class PaneledTreeView(QtWidgets.QTreeView):
         self.setSelectionMode(QtWidgets.QAbstractItemView.ExtendedSelection)
         self.setStyleSheet(style)
         delegate = PanelItemDelegate()
-        # self.setItemDelegate(delegate)
+        self.setItemDelegate(delegate)
         # self.setAutoExpandDelay(2)
         self.setAnimated(True)
 
@@ -458,21 +458,20 @@ class PaneledTreeView(QtWidgets.QTreeView):
 
     def resizeEvent(self, event):
         super(PaneledTreeView, self).resizeEvent(event)
-        headers = self.model().root_item.headers
-        value_column = headers.index('value') if 'value' in headers else -1
+        main_column = 0
         header = self.header()
         header.setStretchLastSection(False)
         header = self.header()
         header.setStretchLastSection(False)
-        header.setSectionResizeMode(value_column, QtWidgets.QHeaderView.Stretch)
+        header.setSectionResizeMode(main_column, QtWidgets.QHeaderView.Stretch)
 
         # ---------------------------------------
         value_delegate = ValueColumnDelegate()
-        self.setItemDelegateForColumn(value_column, value_delegate)
+        self.setItemDelegateForColumn(main_column, value_delegate)
         # ---------------------------------------
 
         for column in range(header.count()):
-            if column == value_column:
+            if column == main_column:
                 continue
 
             header.setSectionResizeMode(column, QtWidgets.QHeaderView.ResizeToContents)
