@@ -386,15 +386,15 @@ class ValueColumnDelegate(PanelItemDelegate):
 
     def __init__(self, parent=None):
         super(ValueColumnDelegate, self).__init__(parent)
-        # self.height = 50
+        # self.height = 100
         self.indent = 10
         self.tag_width = 6
         self.tag_paddings = [2, 0, 1, 0] # left, top, right, bottom
         self.panel_paddings[0] = self.tag_width + self.tag_paddings[0] + self.tag_paddings[2]
-        self.contents_paddings[0] = self.height * 0.6
+        self.max_extend_icon_size = 16
+        self.contents_paddings[0] = min(self.height * 0.5, self.max_extend_icon_size)
         self.text_align = QtCore.Qt.AlignVCenter | QtCore.Qt.AlignLeft
         self.inherit_color = True
-        self.max_extend_icon_size = 16
 
     def _get_color(self, index):
         color = color = index.data(QtCore.Qt.BackgroundRole)
