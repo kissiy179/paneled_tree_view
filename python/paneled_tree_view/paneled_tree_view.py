@@ -175,7 +175,7 @@ class PanelItemDelegate(QtWidgets.QStyledItemDelegate):
     
     def __init__(self, parent=None):
         super(PanelItemDelegate, self).__init__(parent)
-        self.height = 24
+        self.height = 30
         self.panel_padding_x = 0
         self.panel_padding_y = 1
         self.panel_shadow_radio = 0.3
@@ -335,7 +335,7 @@ class PanelItemDelegate(QtWidgets.QStyledItemDelegate):
             return
 
         height = self._panel_rect.height()
-        icon_height = min(height * 0.6, self.max_icon_size)
+        icon_height = min(height * 0.5, self.max_icon_size)
         icon_padding = (height - icon_height) * 0.5
         size = QtCore.QSize(icon_height, icon_height)
         pixmap = icon.pixmap(size)
@@ -390,7 +390,7 @@ class ValueColumnDelegate(PanelItemDelegate):
         self.tag_width = 8
         self.tag_padding_x = 2
         self.tag_padding_y = 0
-        self.panel_padding_x = self.tag_width + self.tag_padding_x
+        self.panel_padding_x = self.tag_width + self.tag_padding_x +1
         self.contents_padding_x = self.height * 0.6
         self.text_align = QtCore.Qt.AlignVCenter | QtCore.Qt.AlignLeft
         self.inherit_color = True
@@ -435,7 +435,7 @@ class ValueColumnDelegate(PanelItemDelegate):
         
         if self._has_children:
             height = self._panel_rect.height()
-            icon_height = min(height * 0.6, self.max_extend_icon_size)
+            icon_height = min(height * 0.5, self.max_extend_icon_size)
             icon_padding = (height - icon_height) * 0.5
             size = QtCore.QSize(height, height)
 
