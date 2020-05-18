@@ -183,8 +183,8 @@ class PanelItemDelegate(QtWidgets.QStyledItemDelegate):
         self.indent = 0
         self.panel_color = panel_color
         self.text_color = text_color
-        self.odd_darker_factor = 7
-        self.depth_darker_factor = 12
+        self.odd_darker_factor = 5
+        self.depth_darker_factor = 10
 
     def _get_depth(self, painter, option, index):
         parent = index.parent()
@@ -215,7 +215,7 @@ class PanelItemDelegate(QtWidgets.QStyledItemDelegate):
 
         return rect
 
-    def _draw_bg(self, painter, option, index, in_rect, in_selected, in_expanded, in_depth):
+    def _draw_panel(self, painter, option, index, in_rect, in_selected, in_expanded, in_depth):
         '''
         背景描画
         '''
@@ -251,17 +251,47 @@ class PanelItemDelegate(QtWidgets.QStyledItemDelegate):
         painter.drawRect(rect)
 
         # 影描画
-        if parent.isValid() and row == 0:
-            grad = QtGui.QLinearGradient(0, rect.top(), 0, rect.top() + rect.height() * 0.3)
-            grad.setColorAt(0, shadow_color)
-            grad.setColorAt(1, color)
-            brush = QtGui.QBrush(grad)
-            painter.setBrush(brush)
-            painter.drawRect(rect)
+        # if parent.isValid() and row == 0:
+        #     grad = QtGui.QLinearGradient(0, rect.top(), 0, rect.top() + rect.height() * 0.3)
+        #     grad.setColorAt(0, shadow_color)
+        #     grad.setColorAt(1, color)
+        #     brush = QtGui.QBrush(grad)
+        #     painter.setBrush(brush)
+        #     painter.drawRect(rect)
 
-        return rect.left() + rect.width()
+        return rect
 
-    def _get_value(self, painter, option, index):
+    def _draw_panel_shadow(self, painter, option, index, in_rect, in_selected, in_expanded, in_depth):
+        '''
+        背景影描画
+        '''
+        if not index.isValid():
+            return in_rect
+
+        row = index.row()
+        parent = index.parent()
+
+        if not parent.isValid() or row != 0:
+            return
+
+        height = in_rect.height() * 0.3
+        
+        rect = QtCore.QRect(
+            in_rect.left(),
+            in_rect.top(),
+            in_rect.width(),
+            height
+        )
+
+        grad = QtGui.QLinearGradient(0, in_rect.top(), 0, in_rect.top() + height)
+        grad.setColorAt(0, shadow_color)
+        grad.setColorAt(1, transparency_color)
+        brush = QtGui.QBrush(grad)
+        painter.setBrush(brush)
+        painter.drawRect(rect)
+        return rect
+
+    def _get_text(self, option, index):
         value = index.data(QtCore.Qt.DisplayRole)
         
         # 入力がリストの場合文字列に変換
@@ -276,7 +306,7 @@ class PanelItemDelegate(QtWidgets.QStyledItemDelegate):
 
     def _draw_text(self, painter, option, index, in_rect, in_selected, in_expanded, in_depth):
         row = index.row()
-        value = self._get_value(painter, option, index)
+        text = self._get_text(option, index)
         color = self.text_color
 
         if row % 2:
@@ -293,7 +323,8 @@ class PanelItemDelegate(QtWidgets.QStyledItemDelegate):
 
         pen = QtGui.QPen(color)
         painter.setPen(pen)
-        painter.drawText(rect, self.text_align, value)
+        painter.drawText(rect, self.text_align, text)
+        return rect
 
     def paint(self, painter, option, index):
         has_children = option.state & QtWidgets.QStyle.State_Children
@@ -304,16 +335,21 @@ class PanelItemDelegate(QtWidgets.QStyledItemDelegate):
         rect = self._get_panel_rect(painter, option, index, depth)
 
         # 背景描画
-        self._draw_bg(painter, option, index, rect, selected, expanded, depth)
+        panel_rect = self._draw_panel(painter, option, index, rect, selected, expanded, depth)
+        shadow_rect = self._draw_panel_shadow(painter, option, index, panel_rect, selected, expanded, depth)
 
         # テキスト描画
-        self._draw_text(painter, option, index, rect, selected, expanded, depth)
-
+        text_rect = self._draw_text(painter, option, index, rect, selected, expanded, depth)
         return rect, selected, expanded, depth, has_children
 
     def sizeHint(self, option, index):
+        font = QtGui.QFont('Segoe UI', 11) # painterから取得できるものと同じ
+        font_metrics = QtGui.QFontMetrics(font)
+        text = self._get_text(option, index)
+        width = font_metrics.width(text)
         rect = option.rect
-        return QtCore.QSize(rect.width(), self.height)
+        text = self._get_text(option, index)
+        return QtCore.QSize(width, self.height)
 
 class ValueColumnDelegate(PanelItemDelegate):
 
@@ -361,6 +397,7 @@ class ValueColumnDelegate(PanelItemDelegate):
         painter.setBrush(brush)
         painter.setPen(pen)
         painter.drawRect(rect)
+        return rect
 
     def _draw_expand_icon(self, painter, option, index, in_rect, in_selected, in_has_children, in_expanded, in_depth):
         
@@ -382,12 +419,14 @@ class ValueColumnDelegate(PanelItemDelegate):
             )
 
             painter.drawPixmap(rect, pixmap)
+            return rect
 
     def paint(self, painter, option, index):
         rect, selected, expanded, depth, has_children = super(ValueColumnDelegate, self).paint(painter, option, index)
 
         # タグ描画
-        self._draw_tag(painter, option, index, rect, selected, expanded, depth)
+        tag_rect = self._draw_tag(painter, option, index, rect, selected, expanded, depth)
+        shadow_rect = self._draw_panel_shadow(painter, option, index, tag_rect, selected, expanded, depth)
 
         # 展開アイコン描画
         self._draw_expand_icon(painter, option, index, rect, selected, has_children, expanded, depth)
@@ -455,10 +494,9 @@ class PaneledTreeView(QtWidgets.QTreeView):
 
     def setModel(self, model):
         super(PaneledTreeView, self).setModel(model)
-        # self.set_headers()
+        self.set_headers()
 
-    def resizeEvent(self, event):
-        super(PaneledTreeView, self).resizeEvent(event)
+    def set_headers(self):
         main_column = 0
         header = self.header()
         header.setStretchLastSection(False)
@@ -477,6 +515,9 @@ class PaneledTreeView(QtWidgets.QTreeView):
 
             header.setSectionResizeMode(column, QtWidgets.QHeaderView.ResizeToContents)
 
+    # def resizeEvent(self, event):
+    #     super(PaneledTreeView, self).resizeEvent(event)
+
 def show():
     win = QtWidgets.QDialog(maya_win)
     vlo = QtWidgets.QVBoxLayout()
@@ -484,26 +525,26 @@ def show():
 
     view = PaneledTreeView()
     model = PanelItemModel()
-    model = QtWidgets.QFileSystemModel()
-    root_dir = os.path.realpath(os.path.join(__file__, '..', '..', '..'))
-    index = model.setRootPath(root_dir)
+    # model = QtWidgets.QFileSystemModel()
+    # root_dir = os.path.realpath(os.path.join(__file__, '..', '..', '..'))
+    # index = model.setRootPath(root_dir)
     view.setModel(model)
 
-    # for i in range(100):
-    #     item = PanelItem(AbstractPanelItemData(value=__file__))
-    #     model.root_item.add_child(item)
+    for i in range(100):
+        item = PanelItem(AbstractPanelItemData(value=__file__))
+        model.root_item.add_child(item)
 
-    #     for j in range(2):
-    #         item_ = PanelItem(AbstractPanelItemData(value=__file__))
-    #         item.add_child(item_)
+        for j in range(2):
+            item_ = PanelItem(AbstractPanelItemData(value=__file__))
+            item.add_child(item_)
 
-    #         for k in range(5):
-    #             item__ = PanelItem(AbstractPanelItemData(value=__file__))
-    #             item_.add_child(item__)
+            for k in range(5):
+                item__ = PanelItem(AbstractPanelItemData(value=__file__))
+                item_.add_child(item__)
 
-    #             for l in range(3):
-    #                 item___ = PanelItem(AbstractPanelItemData(value=__file__))
-    #                 item__.add_child(item___)
+                for l in range(3):
+                    item___ = PanelItem(AbstractPanelItemData(value=__file__))
+                    item__.add_child(item___)
 
     vlo.addWidget(view)
     win.resize(400, 200)
