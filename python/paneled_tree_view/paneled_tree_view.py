@@ -174,7 +174,7 @@ class PanelItemDelegate(QtWidgets.QStyledItemDelegate):
     
     def __init__(self, parent=None):
         super(PanelItemDelegate, self).__init__(parent)
-        self.height = 32
+        self.height = 24
         self.panel_space_width = 0
         self.panel_space_height = 1
         self.panel_shadow_radio = 0.3
@@ -185,14 +185,15 @@ class PanelItemDelegate(QtWidgets.QStyledItemDelegate):
         self.panel_color = panel_color
         self.text_color = text_color
         self.odd_darker_factor = 5
-        self.depth_darker_factor = 10
+        self.depth_darker_factor = 5
 
     def _get_depth(self, painter, option, index):
         parent = index.parent()
         depth = 0
+        root_index = option.widget.rootIndex()
 
         while True:
-            if not parent.isValid():
+            if not parent.isValid() or parent == root_index:
                 break
 
             parent = parent.parent()
@@ -428,16 +429,17 @@ QTreeView::branch {
         background: palette(base);
 }
 
-//
 QHeaderView::section {                          
-    color: black;                               
-    padding: 2px;                               
+    color: lightgray;                               
+    padding: 0px;                               
     height:20px;                                
     border: 0px solid #567dbc;                  
     border-left:0px;                            
     border-right:0px;                           
-    background: #555;                        
+    background: #555;
+    alignment: right 
 }
+//
 
 QTreeView::branch:has-siblings:!adjoins-item {
         background: cyan;
@@ -491,8 +493,7 @@ class PaneledTreeView(QtWidgets.QTreeView):
     def set_headers(self):
         main_column = 0
         header = self.header()
-        header.setStretchLastSection(False)
-        header = self.header()
+        header.setDefaultAlignment(QtCore.Qt.AlignVCenter | QtCore.Qt.AlignHCenter)
         header.setStretchLastSection(False)
         header.setSectionResizeMode(main_column, QtWidgets.QHeaderView.Stretch)
 
@@ -517,26 +518,30 @@ def show():
 
     view = PaneledTreeView()
     model = PanelItemModel()
-    # model = QtWidgets.QFileSystemModel()
-    # root_dir = os.path.realpath(os.path.join(__file__, '..', '..', '..'))
-    # index = model.setRootPath(root_dir)
+
+    model = QtWidgets.QFileSystemModel()
+    root_dir = os.path.realpath(os.path.join(__file__, '..', '..', '..'))
+    index = model.setRootPath(root_dir)
+
+    # model = QtCore.QStringListModel([str(i) for i in range(100)])
     view.setModel(model)
+    view.setRootIndex(index)
 
-    for i in range(100):
-        item = PanelItem(AbstractPanelItemData(value=__file__))
-        model.root_item.add_child(item)
+    # for i in range(100):
+    #     item = PanelItem(AbstractPanelItemData(value=__file__))
+    #     model.root_item.add_child(item)
 
-        for j in range(2):
-            item_ = PanelItem(AbstractPanelItemData(value=__file__))
-            item.add_child(item_)
+    #     for j in range(2):
+    #         item_ = PanelItem(AbstractPanelItemData(value=__file__))
+    #         item.add_child(item_)
 
-            for k in range(5):
-                item__ = PanelItem(AbstractPanelItemData(value=__file__))
-                item_.add_child(item__)
+    #         for k in range(5):
+    #             item__ = PanelItem(AbstractPanelItemData(value=__file__))
+    #             item_.add_child(item__)
 
-                for l in range(3):
-                    item___ = PanelItem(AbstractPanelItemData(value=__file__))
-                    item__.add_child(item___)
+    #             for l in range(3):
+    #                 item___ = PanelItem(AbstractPanelItemData(value=__file__))
+    #                 item__.add_child(item___)
 
     vlo.addWidget(view)
     win.resize(400, 200)
