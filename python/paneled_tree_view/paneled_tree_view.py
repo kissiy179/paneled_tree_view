@@ -32,8 +32,8 @@ class AbstractPanelItemData(object):
         self.value = value
         self.attribute1 = attribute1
         self.attribute2 = attribute2
-        self.color = random.randint(60, 255), random.randint(60, 255), random.randint(60, 255)
-        self.headers = 'value', 'attribute1', 'attribute2', 'color'
+        # self.color = random.randint(60, 255), random.randint(60, 255), random.randint(60, 255)
+        self.headers = 'value', 'attribute1', 'attribute2'
 
 class PanelItem(object):
     
@@ -410,7 +410,8 @@ class MainColumnDelegate(PanelItemDelegate):
                 parent = parent.parent()
 
         if not color:
-            color = default_tag_color
+            colors = qt_cud_colors.base_colors
+            color = colors[index.row() % len(colors)]
 
         return color
 
