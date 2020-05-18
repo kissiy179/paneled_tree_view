@@ -23,6 +23,7 @@ sub_text_color = QtGui.QColor(*[160]*3)
 err_text_color = QtGui.QColor(255, 30, 30)
 deactive_text_color = QtGui.QColor(*[30]*3)
 default_tag_color = QtGui.QColor(*[73]*3)
+default_tag_color = QtGui.QColor(255, 40, 40)
 selected_panel_color = QtGui.QColor(82, 133, 166)
 selected_text_color = QtGui.QColor(*[255]*3)
 
@@ -333,6 +334,7 @@ class PanelItemDelegate(QtWidgets.QStyledItemDelegate):
 
         # テキスト描画
         text_rect = self._draw_text(painter, option, index, rect, selected, expanded, depth)
+
         return rect, selected, expanded, depth, has_children
 
     def sizeHint(self, option, index):
@@ -356,6 +358,7 @@ class ValueColumnDelegate(PanelItemDelegate):
         self.text_space_width = self.height * 0.6
         self.text_align = QtCore.Qt.AlignVCenter | QtCore.Qt.AlignLeft
         self.inherit_color = True
+        self._expand_icon_maxsize = 16
 
     def _get_color(self, index):
         color = color = index.data(QtCore.Qt.BackgroundRole)
@@ -395,7 +398,9 @@ class ValueColumnDelegate(PanelItemDelegate):
     def _draw_expand_icon(self, painter, option, index, in_rect, in_selected, in_has_children, in_expanded, in_depth):
         
         if in_has_children:
-            height = in_rect.height() * (3/5.0)
+            height = in_rect.height()
+            icon_height = min(height * (3/5.0), self._expand_icon_maxsize)
+            icon_padding = (height - icon_height) * 0.5
             size = QtCore.QSize(height, height)
 
             if in_expanded:
@@ -406,9 +411,9 @@ class ValueColumnDelegate(PanelItemDelegate):
 
             rect = QtCore.QRect(
                 in_rect.left(),
-                in_rect.top() + (option.rect.height() * (1/5.0)),
-                height,
-                height
+                in_rect.top() + icon_padding,
+                icon_height,
+                icon_height
             )
 
             painter.drawPixmap(rect, pixmap)
