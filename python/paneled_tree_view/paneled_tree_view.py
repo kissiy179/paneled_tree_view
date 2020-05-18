@@ -382,10 +382,10 @@ class PanelItemDelegate(QtWidgets.QStyledItemDelegate):
         text = self._get_text(option, index)
         return QtCore.QSize(width, self.height)
 
-class ValueColumnDelegate(PanelItemDelegate):
+class MainColumnDelegate(PanelItemDelegate):
 
     def __init__(self, parent=None):
-        super(ValueColumnDelegate, self).__init__(parent)
+        super(MainColumnDelegate, self).__init__(parent)
         # self.height = 100
         self.indent = 10
         self.tag_width = 6
@@ -400,7 +400,7 @@ class ValueColumnDelegate(PanelItemDelegate):
         color = color = index.data(QtCore.Qt.BackgroundRole)
         parent = index.parent()
 
-        # parent_itemがない場合スキップすることでルートアイテムの色は判定しないようにする
+        # parent不正な場合スキップすることでルートアイテムの色は判定しないようにする
         if self.inherit_color and parent.isValid():
             while True:
                 if not parent.isValid():
@@ -457,7 +457,7 @@ class ValueColumnDelegate(PanelItemDelegate):
             painter.drawPixmap(rect, pixmap)
 
     def paint(self, painter, option, index):
-        super(ValueColumnDelegate, self).paint(painter, option, index)
+        super(MainColumnDelegate, self).paint(painter, option, index)
 
         # タグ描画
         self._draw_tag(painter, option, index)
@@ -539,10 +539,9 @@ class PaneledTreeView(QtWidgets.QTreeView):
         header.setStretchLastSection(False)
         header.setSectionResizeMode(main_column, QtWidgets.QHeaderView.Stretch)
 
-        # ---------------------------------------
-        value_delegate = ValueColumnDelegate()
-        self.setItemDelegateForColumn(main_column, value_delegate)
-        # ---------------------------------------
+        # メイン部分のみデリゲートを変更
+        main_delegate = MainColumnDelegate()
+        self.setItemDelegateForColumn(main_column, main_delegate)
 
         for column in range(header.count()):
             if column == main_column:
