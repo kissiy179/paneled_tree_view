@@ -23,7 +23,6 @@ sub_text_color = QtGui.QColor(*[160]*3)
 err_text_color = QtGui.QColor(255, 30, 30)
 deactive_text_color = QtGui.QColor(*[30]*3)
 default_tag_color = QtGui.QColor(*[73]*3)
-default_tag_color = QtGui.QColor(255, 40, 40)
 selected_panel_color = QtGui.QColor(82, 133, 166)
 selected_text_color = QtGui.QColor(*[255]*3)
 
@@ -176,17 +175,19 @@ class PanelItemDelegate(QtWidgets.QStyledItemDelegate):
     def __init__(self, parent=None):
         super(PanelItemDelegate, self).__init__(parent)
         self.height = 24
-        self.panel_space_width = 0
-        self.panel_space_height = 1
+        self.panel_padding_x = 0
+        self.panel_padding_y = 1
         self.panel_shadow_radio = 0.3
-        self.text_space_width = 0
-        self.text_space_height = 0
+        self.contents_padding_x = 0
+        self.contents_padding_y = 0
+        self.contents_space = 2
         self.text_align = QtCore.Qt.AlignVCenter | QtCore.Qt.AlignHCenter
         self.indent = 0
         self.panel_color = panel_color
         self.text_color = text_color
         self.odd_darker_factor = 5
         self.depth_darker_factor = 5
+        self.max_icon_size = 32
 
     def _get_depth(self, painter, option, index):
         parent = index.parent()
@@ -210,10 +211,10 @@ class PanelItemDelegate(QtWidgets.QStyledItemDelegate):
         indent = self.indent * in_depth
 
         rect = QtCore.QRect(
-            option.rect.left() + self.panel_space_width + indent,
-            option.rect.top() + self.panel_space_height,
-            option.rect.width() - self.panel_space_width,
-            option.rect.height() - self.panel_space_height
+            option.rect.left() + self.panel_padding_x + indent,
+            option.rect.top() + self.panel_padding_y,
+            option.rect.width() - self.panel_padding_x,
+            option.rect.height() - self.panel_padding_y
         )
 
         return rect
@@ -222,9 +223,6 @@ class PanelItemDelegate(QtWidgets.QStyledItemDelegate):
         '''
         背景描画
         '''
-        if not index.isValid():
-            return in_rect
-        
         row = index.row()
         parent = index.parent()
 
@@ -259,14 +257,11 @@ class PanelItemDelegate(QtWidgets.QStyledItemDelegate):
         '''
         背景影描画
         '''
-        if not index.isValid():
-            return in_rect
-
         row = index.row()
         parent = index.parent()
 
         if not parent.isValid() or row != 0:
-            return
+            return in_rect
 
         height = in_rect.height() * self.panel_shadow_radio
         
@@ -298,7 +293,7 @@ class PanelItemDelegate(QtWidgets.QStyledItemDelegate):
         value = ' : '.join(value)
         return value
 
-    def _draw_text(self, painter, option, index, in_rect, in_selected, in_expanded, in_depth):
+    def _draw_text(self, painter, option, index, in_pre_rect, in_rect, in_selected, in_expanded, in_depth):
         row = index.row()
         text = self._get_text(option, index)
         color = self.text_color
@@ -309,7 +304,7 @@ class PanelItemDelegate(QtWidgets.QStyledItemDelegate):
         color = color.darker(100 + in_depth * self.depth_darker_factor)
 
         rect = QtCore.QRect(
-            in_rect.left() + self.text_space_width,
+            in_pre_rect.left() + in_pre_rect.width(),
             in_rect.top(),
             in_rect.width(),
             in_rect.height()
@@ -320,6 +315,28 @@ class PanelItemDelegate(QtWidgets.QStyledItemDelegate):
         painter.drawText(rect, self.text_align, text)
         return rect
 
+    def _draw_icon(self, painter, option, index, in_pre_rect, in_rect, in_selected, in_expanded, in_depth):
+        icon = index.data(QtCore.Qt.DecorationRole)
+
+        if not icon:
+            return in_pre_rect
+
+        height = in_rect.height()
+        icon_height = min(height * 0.6, self.max_icon_size)
+        icon_padding = (height - icon_height) * 0.5
+        size = QtCore.QSize(icon_height, icon_height)
+        pixmap = icon.pixmap(size)
+
+        rect = QtCore.QRect(
+            in_pre_rect.left() + in_pre_rect.width(),
+            in_rect.top() + icon_padding,
+            icon_height,
+            icon_height
+        )
+
+        painter.drawPixmap(rect, pixmap)
+        return rect
+
     def paint(self, painter, option, index):
         has_children = option.state & QtWidgets.QStyle.State_Children
         expanded = option.state & QtWidgets.QStyle.State_Open
@@ -327,13 +344,23 @@ class PanelItemDelegate(QtWidgets.QStyledItemDelegate):
         parent = index.parent()
         depth = self._get_depth(painter, option, index)
         rect = self._get_panel_rect(painter, option, index, depth)
+        
+        pre_rect = QtCore.QRect(
+            rect.left() + self.contents_padding_x,
+            rect.top(),
+            0,
+            rect.height()
+        )
 
         # 背景描画
         panel_rect = self._draw_panel(painter, option, index, rect, selected, expanded, depth)
         shadow_rect = self._draw_panel_shadow(painter, option, index, panel_rect, selected, expanded, depth)
 
+        # アイコン描画
+        icon_rect = self._draw_icon(painter, option, index, pre_rect, rect, selected, expanded, depth)
+
         # テキスト描画
-        text_rect = self._draw_text(painter, option, index, rect, selected, expanded, depth)
+        text_rect = self._draw_text(painter, option, index, icon_rect, rect, selected, expanded, depth)
 
         return rect, selected, expanded, depth, has_children
 
@@ -350,15 +377,16 @@ class ValueColumnDelegate(PanelItemDelegate):
 
     def __init__(self, parent=None):
         super(ValueColumnDelegate, self).__init__(parent)
-        # self.height = 80
-        self.tag_width = 8
-        self.tag_space_width = 2
+        # self.height = 50
         self.indent = 10
-        self.panel_space_width = self.tag_width + self.tag_space_width
-        self.text_space_width = self.height * 0.6
+        self.tag_width = 8
+        self.tag_padding_x = 2
+        self.tag_padding_y = 0
+        self.panel_padding_x = self.tag_width + self.tag_padding_x
+        self.contents_padding_x = self.height * 0.6
         self.text_align = QtCore.Qt.AlignVCenter | QtCore.Qt.AlignLeft
         self.inherit_color = True
-        self._expand_icon_maxsize = 16
+        self.max_extend_icon_size = 16
 
     def _get_color(self, index):
         color = color = index.data(QtCore.Qt.BackgroundRole)
@@ -380,7 +408,7 @@ class ValueColumnDelegate(PanelItemDelegate):
 
     def _draw_tag(self, painter, option, index, in_rect, in_selected, in_expanded, in_depth):
         rect = QtCore.QRect(
-            self.indent * in_depth + self.tag_space_width,
+            self.indent * in_depth + self.tag_padding_x,
             in_rect.top(),
             self.tag_width,
             in_rect.height()
@@ -399,7 +427,7 @@ class ValueColumnDelegate(PanelItemDelegate):
         
         if in_has_children:
             height = in_rect.height()
-            icon_height = min(height * (3/5.0), self._expand_icon_maxsize)
+            icon_height = min(height * 0.6, self.max_extend_icon_size)
             icon_padding = (height - icon_height) * 0.5
             size = QtCore.QSize(height, height)
 
