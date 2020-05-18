@@ -176,12 +176,10 @@ class PanelItemDelegate(QtWidgets.QStyledItemDelegate):
     def __init__(self, parent=None):
         super(PanelItemDelegate, self).__init__(parent)
         self.height = 30
-        self.panel_padding_x = 0
-        self.panel_padding_y = 1
-        self.panel_shadow_radio = 0.3
-        self.contents_padding_x = 0
-        self.contents_padding_y = 0
+        self.panel_paddings = [0, 1, 0, 1] # left, top, right, bottom
+        self.contents_paddings = [0, 0, 0, 0] # left, top, right, bottom
         self.contents_space = 6
+        self.panel_shadow_ratio = 0.3
         self.text_align = QtCore.Qt.AlignVCenter | QtCore.Qt.AlignHCenter
         self.indent = 0
         self.panel_color = panel_color
@@ -225,10 +223,10 @@ class PanelItemDelegate(QtWidgets.QStyledItemDelegate):
         indent = self.indent * self._depth
 
         rect = QtCore.QRect(
-            option.rect.left() + self.panel_padding_x + indent,
-            option.rect.top() + self.panel_padding_y,
-            option.rect.width() - self.panel_padding_x,
-            option.rect.height() - self.panel_padding_y
+            option.rect.left() + self.panel_paddings[0] + indent,
+            option.rect.top() + self.panel_paddings[1],
+            option.rect.width() - self.panel_paddings[2],
+            option.rect.height() - self.panel_paddings[3]
         )
 
         return rect
@@ -240,7 +238,7 @@ class PanelItemDelegate(QtWidgets.QStyledItemDelegate):
         indent = self.indent * self._depth
 
         rect = QtCore.QRect(
-            self._panel_rect.left() + self.contents_padding_x,
+            self._panel_rect.left() + self.contents_paddings[0],
             self._panel_rect.top(),
             0,
             self._panel_rect.height()
@@ -248,9 +246,9 @@ class PanelItemDelegate(QtWidgets.QStyledItemDelegate):
 
         return rect
 
-    def _draw_panel(self, painter, option, index):
+    def _draw_bg(self, painter, option, index):
         '''
-        背景描画
+        背景を描画
         '''
         row = index.row()
         parent = index.parent()
@@ -264,18 +262,20 @@ class PanelItemDelegate(QtWidgets.QStyledItemDelegate):
         if row % 2:
             color = color.darker(100 + self.odd_darker_factor)
 
+        rect = self._panel_rect
         color = color.darker(100 + self._depth * self.depth_darker_factor)
-
-        # 通常背景描画
         brush = QtGui.QBrush(color)
         pen = QtGui.QPen(transparency_color)
         painter.setBrush(brush)
         painter.setPen(pen)
-        painter.drawRect(self._panel_rect)
+        painter.drawRect(rect)
 
-    def _draw_panel_shadow(self, painter, option, index):
+        # 最終背景を更新
+        self._last_bg_rect = rect
+
+    def _draw_bg_shadow(self, painter, option, index):
         '''
-        背景影描画
+        最後に描画した背景に影を描画
         '''
         row = index.row()
         parent = index.parent()
@@ -283,16 +283,16 @@ class PanelItemDelegate(QtWidgets.QStyledItemDelegate):
         if self._depth == 0 or row != 0:
             return
 
-        height = self._panel_rect.height() * self.panel_shadow_radio
+        height = self._last_bg_rect.height() * self.panel_shadow_ratio
         
         rect = QtCore.QRect(
-            self._panel_rect.left(),
-            self._panel_rect.top(),
-            self._panel_rect.width(),
+            self._last_bg_rect.left(),
+            self._last_bg_rect.top(),
+            self._last_bg_rect.width(),
             height
         )
 
-        grad = QtGui.QLinearGradient(0, self._panel_rect.top(), 0, self._panel_rect.top() + height)
+        grad = QtGui.QLinearGradient(0, self._last_bg_rect.top(), 0, self._last_bg_rect.top() + height)
         grad.setColorAt(0, shadow_color)
         grad.setColorAt(1, transparency_color)
         brush = QtGui.QBrush(grad)
@@ -324,7 +324,7 @@ class PanelItemDelegate(QtWidgets.QStyledItemDelegate):
         painter.setPen(pen)
         painter.drawText(rect, self.text_align, text)
 
-        # コンテンツオプションを更新
+        # 最終コンテンツを更新
         self._last_content_rect = rect
         self._contents_count += 1
 
@@ -350,7 +350,7 @@ class PanelItemDelegate(QtWidgets.QStyledItemDelegate):
 
         painter.drawPixmap(rect, pixmap)
 
-        # コンテンツオプションを更新
+        # 最終コンテンツを更新
         self._last_content_rect = rect
         self._contents_count += 1
 
@@ -361,12 +361,13 @@ class PanelItemDelegate(QtWidgets.QStyledItemDelegate):
         self._selected = option.state & QtWidgets.QStyle.State_Selected
         self._depth = self._get_depth(option, index)
         self._panel_rect = self._get_panel_rect(option)
+        self._last_bg_rect = option.rect
         self._last_content_rect = self._get_first_content_rect(option)
         self._contents_count = 0
         
         # 背景描画
-        self._draw_panel(painter, option, index)
-        self._draw_panel_shadow(painter, option, index)
+        self._draw_bg(painter, option, index)
+        self._draw_bg_shadow(painter, option, index)
 
         # コンテンツ描画
         self._draw_icon(painter, option, index)
@@ -387,11 +388,10 @@ class ValueColumnDelegate(PanelItemDelegate):
         super(ValueColumnDelegate, self).__init__(parent)
         # self.height = 50
         self.indent = 10
-        self.tag_width = 8
-        self.tag_padding_x = 2
-        self.tag_padding_y = 0
-        self.panel_padding_x = self.tag_width + self.tag_padding_x +1
-        self.contents_padding_x = self.height * 0.6
+        self.tag_width = 6
+        self.tag_paddings = [2, 0, 1, 0] # left, top, right, bottom
+        self.panel_paddings[0] = self.tag_width + self.tag_paddings[0] + self.tag_paddings[2]
+        self.contents_paddings[0] = self.height * 0.6
         self.text_align = QtCore.Qt.AlignVCenter | QtCore.Qt.AlignLeft
         self.inherit_color = True
         self.max_extend_icon_size = 16
@@ -416,7 +416,7 @@ class ValueColumnDelegate(PanelItemDelegate):
 
     def _draw_tag(self, painter, option, index):
         rect = QtCore.QRect(
-            self.indent * self._depth + self.tag_padding_x,
+            self.indent * self._depth + self.tag_paddings[0],
             self._panel_rect.top(),
             self.tag_width,
             self._panel_rect.height()
@@ -429,7 +429,9 @@ class ValueColumnDelegate(PanelItemDelegate):
         painter.setBrush(brush)
         painter.setPen(pen)
         painter.drawRect(rect)
-        return rect
+
+        # 最終背景を更新
+        self._last_bg_rect = rect
 
     def _draw_expand_icon(self, painter, option, index):
         
@@ -453,16 +455,15 @@ class ValueColumnDelegate(PanelItemDelegate):
             )
 
             painter.drawPixmap(rect, pixmap)
-            return rect
 
     def paint(self, painter, option, index):
         super(ValueColumnDelegate, self).paint(painter, option, index)
 
         # タグ描画
-        tag_rect = self._draw_tag(painter, option, index)
-        # shadow_rect = self._draw_panel_shadow(painter, option, index)
+        self._draw_tag(painter, option, index)
+        self._draw_bg_shadow(painter, option, index)
 
-        # 展開アイコン描画
+        # # 展開アイコン描画
         self._draw_expand_icon(painter, option, index)
 
 style = '''
