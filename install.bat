@@ -43,7 +43,7 @@ REM pipアップデート
 call %MAYAPY_PATH% -m pip install -U pip
 
 REM ------- パッケージインストール -------------------------
-call %MAYAPY_PATH% -m pip install -r requirements.txt -t %LIB_PATH%
+call %MAYAPY_PATH% -m pip install -U -r requirements.txt -t %LIB_PATH%
 
 goto end
 
