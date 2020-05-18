@@ -2,6 +2,7 @@
 import os
 import random
 from collections import OrderedDict
+from functools import partial
 import qtawesome
 from mayaqt import *
 
@@ -180,7 +181,7 @@ class PanelItemDelegate(QtWidgets.QStyledItemDelegate):
         self.panel_shadow_radio = 0.3
         self.contents_padding_x = 0
         self.contents_padding_y = 0
-        self.contents_space = 2
+        self.contents_space = 6
         self.text_align = QtCore.Qt.AlignVCenter | QtCore.Qt.AlignHCenter
         self.indent = 0
         self.panel_color = panel_color
@@ -188,6 +189,19 @@ class PanelItemDelegate(QtWidgets.QStyledItemDelegate):
         self.odd_darker_factor = 5
         self.depth_darker_factor = 5
         self.max_icon_size = 32
+
+    def _get_text(self, option, index):
+        value = index.data(QtCore.Qt.DisplayRole)
+        
+        # 入力がリストの場合文字列に変換
+        if hasattr(value, '__iter__'):
+            value = [unicode(value_) for value_ in value]
+
+        else:
+            value = [unicode(value)]
+
+        value = ' : '.join(value)
+        return value
 
     def _get_depth(self, option, index):
         parent = index.parent()
@@ -205,16 +219,31 @@ class PanelItemDelegate(QtWidgets.QStyledItemDelegate):
 
     def _get_panel_rect(self, option):
         '''
-        アイテム描画矩形を取得
+        パネル描画矩形を取得
         元のものより一回り小さいものを返す
         '''
-        indent = self.indent * option._depth
+        indent = self.indent * self._depth
 
         rect = QtCore.QRect(
             option.rect.left() + self.panel_padding_x + indent,
             option.rect.top() + self.panel_padding_y,
             option.rect.width() - self.panel_padding_x,
             option.rect.height() - self.panel_padding_y
+        )
+
+        return rect
+
+    def _get_first_content_rect(self, option):
+        '''
+        最初の(空の)コンテンツ描画矩形を取得
+        '''
+        indent = self.indent * self._depth
+
+        rect = QtCore.QRect(
+            self._panel_rect.left() + self.contents_padding_x,
+            self._panel_rect.top(),
+            0,
+            self._panel_rect.height()
         )
 
         return rect
@@ -226,7 +255,7 @@ class PanelItemDelegate(QtWidgets.QStyledItemDelegate):
         row = index.row()
         parent = index.parent()
 
-        if option._selected:
+        if self._selected:
             color = selected_panel_color
 
         else:
@@ -235,16 +264,14 @@ class PanelItemDelegate(QtWidgets.QStyledItemDelegate):
         if row % 2:
             color = color.darker(100 + self.odd_darker_factor)
 
-        color = color.darker(100 + option._depth * self.depth_darker_factor)
+        color = color.darker(100 + self._depth * self.depth_darker_factor)
 
         # 通常背景描画
         brush = QtGui.QBrush(color)
         pen = QtGui.QPen(transparency_color)
         painter.setBrush(brush)
         painter.setPen(pen)
-        painter.drawRect(option._panel_rect)
-
-        return option._panel_rect
+        painter.drawRect(self._panel_rect)
 
     def _draw_panel_shadow(self, painter, option, index):
         '''
@@ -253,108 +280,97 @@ class PanelItemDelegate(QtWidgets.QStyledItemDelegate):
         row = index.row()
         parent = index.parent()
 
-        if not parent.isValid() or row != 0:
-            return option._panel_rect
+        if self._depth == 0 or row != 0:
+            return
 
-        height = option._panel_rect.height() * self.panel_shadow_radio
+        height = self._panel_rect.height() * self.panel_shadow_radio
         
         rect = QtCore.QRect(
-            option._panel_rect.left(),
-            option._panel_rect.top(),
-            option._panel_rect.width(),
+            self._panel_rect.left(),
+            self._panel_rect.top(),
+            self._panel_rect.width(),
             height
         )
 
-        grad = QtGui.QLinearGradient(0, option._panel_rect.top(), 0, option._panel_rect.top() + height)
+        grad = QtGui.QLinearGradient(0, self._panel_rect.top(), 0, self._panel_rect.top() + height)
         grad.setColorAt(0, shadow_color)
         grad.setColorAt(1, transparency_color)
         brush = QtGui.QBrush(grad)
         painter.setBrush(brush)
         painter.drawRect(rect)
-        return rect
 
-    def _get_text(self, option, index):
-        value = index.data(QtCore.Qt.DisplayRole)
-        
-        # 入力がリストの場合文字列に変換
-        if hasattr(value, '__iter__'):
-            value = [unicode(value_) for value_ in value]
-
-        else:
-            value = [unicode(value)]
-
-        value = ' : '.join(value)
-        return value
-
-    def _draw_text(self, painter, option, index, in_pre_rect):
+    def _draw_text(self, painter, option, index):
         row = index.row()
         text = self._get_text(option, index)
+        font = painter.font()
+        font_metrics = QtGui.QFontMetrics(font)
+        width = font_metrics.width(text)
         color = self.text_color
+        space = self.contents_space * bool(self._contents_count)
 
         if row % 2:
             color = color.darker(100 + self.odd_darker_factor)
 
-        color = color.darker(100 + option._depth * self.depth_darker_factor)
+        color = color.darker(100 + self._depth * self.depth_darker_factor)
 
         rect = QtCore.QRect(
-            in_pre_rect.left() + in_pre_rect.width(),
-            option._panel_rect.top(),
-            option._panel_rect.width(),
-            option._panel_rect.height()
+            self._last_content_rect.left() + self._last_content_rect.width() + space,
+            self._panel_rect.top(),
+            width,
+            self._panel_rect.height()
         )
 
         pen = QtGui.QPen(color)
         painter.setPen(pen)
         painter.drawText(rect, self.text_align, text)
-        return rect
 
-    def _draw_icon(self, painter, option, index, in_pre_rect):
+        # コンテンツオプションを更新
+        self._last_content_rect = rect
+        self._contents_count += 1
+
+    def _draw_icon(self, painter, option, index):
         icon = index.data(QtCore.Qt.DecorationRole)
 
         if not icon:
-            return in_pre_rect
+            return
 
-        height = option._panel_rect.height()
+        height = self._panel_rect.height()
         icon_height = min(height * 0.6, self.max_icon_size)
         icon_padding = (height - icon_height) * 0.5
         size = QtCore.QSize(icon_height, icon_height)
         pixmap = icon.pixmap(size)
+        space = self.contents_space * bool(self._contents_count)
 
         rect = QtCore.QRect(
-            in_pre_rect.left() + in_pre_rect.width(),
-            option._panel_rect.top() + icon_padding,
+            self._last_content_rect.left() + self._last_content_rect.width() + space,
+            self._panel_rect.top() + icon_padding,
             icon_height,
             icon_height
         )
 
         painter.drawPixmap(rect, pixmap)
-        return rect
+
+        # コンテンツオプションを更新
+        self._last_content_rect = rect
+        self._contents_count += 1
 
     def paint(self, painter, option, index):
-        option._has_children = option.state & QtWidgets.QStyle.State_Children
-        option._extended = option.state & QtWidgets.QStyle.State_Open
-        option._selected = option.state & QtWidgets.QStyle.State_Selected
-        option._depth = self._get_depth(option, index)
-        option._panel_rect = self._get_panel_rect(option)
-        parent = index.parent()
-        rect = self._get_panel_rect(option)
+        # オプションを追加
+        self._has_children = option.state & QtWidgets.QStyle.State_Children
+        self._extended = option.state & QtWidgets.QStyle.State_Open
+        self._selected = option.state & QtWidgets.QStyle.State_Selected
+        self._depth = self._get_depth(option, index)
+        self._panel_rect = self._get_panel_rect(option)
+        self._last_content_rect = self._get_first_content_rect(option)
+        self._contents_count = 0
         
-        pre_rect = QtCore.QRect(
-            rect.left() + self.contents_padding_x,
-            rect.top(),
-            0,
-            rect.height()
-        )
-
         # 背景描画
-        panel_rect = self._draw_panel(painter, option, index)
-        shadow_rect = self._draw_panel_shadow(painter, option, index)
+        self._draw_panel(painter, option, index)
+        self._draw_panel_shadow(painter, option, index)
 
-        # アイコン描画
-        icon_rect = self._draw_icon(painter, option, index, pre_rect)
-
-        # テキスト描画
-        text_rect = self._draw_text(painter, option, index, icon_rect)
+        # コンテンツ描画
+        self._draw_icon(painter, option, index)
+        self._draw_text(painter, option, index)
 
     def sizeHint(self, option, index):
         font = QtGui.QFont('Segoe UI', 11) # painterから取得できるものと同じ
@@ -400,14 +416,14 @@ class ValueColumnDelegate(PanelItemDelegate):
 
     def _draw_tag(self, painter, option, index):
         rect = QtCore.QRect(
-            self.indent * option._depth + self.tag_padding_x,
-            option._panel_rect.top(),
+            self.indent * self._depth + self.tag_padding_x,
+            self._panel_rect.top(),
             self.tag_width,
-            option._panel_rect.height()
+            self._panel_rect.height()
         )
 
         color = self._get_color(index)
-        color = color.darker(100 + option._depth * self.depth_darker_factor)
+        color = color.darker(100 + self._depth * self.depth_darker_factor)
         brush = QtGui.QBrush(color)
         pen = QtGui.QPen(transparency_color)
         painter.setBrush(brush)
@@ -417,21 +433,21 @@ class ValueColumnDelegate(PanelItemDelegate):
 
     def _draw_expand_icon(self, painter, option, index):
         
-        if option._has_children:
-            height = option._panel_rect.height()
+        if self._has_children:
+            height = self._panel_rect.height()
             icon_height = min(height * 0.6, self.max_extend_icon_size)
             icon_padding = (height - icon_height) * 0.5
             size = QtCore.QSize(height, height)
 
-            if option._extended:
+            if self._extended:
                 pixmap = down_icon.pixmap(size)
 
             else:
                 pixmap = right_icon.pixmap(size)
 
             rect = QtCore.QRect(
-                option._panel_rect.left(),
-                option._panel_rect.top() + icon_padding,
+                self._panel_rect.left(),
+                self._panel_rect.top() + icon_padding,
                 icon_height,
                 icon_height
             )
@@ -444,7 +460,7 @@ class ValueColumnDelegate(PanelItemDelegate):
 
         # タグ描画
         tag_rect = self._draw_tag(painter, option, index)
-        shadow_rect = self._draw_panel_shadow(painter, option, index)
+        # shadow_rect = self._draw_panel_shadow(painter, option, index)
 
         # 展開アイコン描画
         self._draw_expand_icon(painter, option, index)
@@ -569,5 +585,5 @@ def show():
     #                 item__.add_child(item___)
 
     vlo.addWidget(view)
-    win.resize(400, 200)
+    win.resize(600, 400)
     win.show()
