@@ -177,6 +177,7 @@ class PanelItemDelegate(QtWidgets.QStyledItemDelegate):
         self.height = 32
         self.panel_space_width = 0
         self.panel_space_height = 1
+        self.panel_shadow_radio = 0.3
         self.text_space_width = 0
         self.text_space_height = 0
         self.text_align = QtCore.Qt.AlignVCenter | QtCore.Qt.AlignHCenter
@@ -250,15 +251,6 @@ class PanelItemDelegate(QtWidgets.QStyledItemDelegate):
         painter.setPen(pen)
         painter.drawRect(rect)
 
-        # 影描画
-        # if parent.isValid() and row == 0:
-        #     grad = QtGui.QLinearGradient(0, rect.top(), 0, rect.top() + rect.height() * 0.3)
-        #     grad.setColorAt(0, shadow_color)
-        #     grad.setColorAt(1, color)
-        #     brush = QtGui.QBrush(grad)
-        #     painter.setBrush(brush)
-        #     painter.drawRect(rect)
-
         return rect
 
     def _draw_panel_shadow(self, painter, option, index, in_rect, in_selected, in_expanded, in_depth):
@@ -274,7 +266,7 @@ class PanelItemDelegate(QtWidgets.QStyledItemDelegate):
         if not parent.isValid() or row != 0:
             return
 
-        height = in_rect.height() * 0.3
+        height = in_rect.height() * self.panel_shadow_radio
         
         rect = QtCore.QRect(
             in_rect.left(),
