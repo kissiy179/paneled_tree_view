@@ -188,6 +188,22 @@ class PanelItemDelegate(QtWidgets.QStyledItemDelegate):
         self.depth_darker_factor = 5
         self.max_icon_size = 32
 
+    def _get_panel_rect(self, option):
+        '''
+        パネル描画矩形を取得
+        元のものより一回り小さいものを返す
+        '''
+        indent = self.indent * self._depth
+
+        rect = QtCore.QRect(
+            option.rect.left() + self.panel_paddings[0] + indent,
+            option.rect.top() + self.panel_paddings[1],
+            option.rect.width() - self.panel_paddings[2] - indent,
+            option.rect.height() - self.panel_paddings[3]
+        )
+
+        return rect
+
     def _get_text(self, option, index):
         value = index.data(QtCore.Qt.DisplayRole)
         
@@ -214,22 +230,6 @@ class PanelItemDelegate(QtWidgets.QStyledItemDelegate):
             depth += 1
 
         return depth
-
-    def _get_panel_rect(self, option):
-        '''
-        パネル描画矩形を取得
-        元のものより一回り小さいものを返す
-        '''
-        indent = self.indent * self._depth
-
-        rect = QtCore.QRect(
-            option.rect.left() + self.panel_paddings[0] + indent,
-            option.rect.top() + self.panel_paddings[1],
-            option.rect.width() - self.panel_paddings[2],
-            option.rect.height() - self.panel_paddings[3]
-        )
-
-        return rect
 
     def _get_first_content_rect(self, option):
         '''
@@ -361,7 +361,7 @@ class PanelItemDelegate(QtWidgets.QStyledItemDelegate):
         self._selected = option.state & QtWidgets.QStyle.State_Selected
         self._depth = self._get_depth(option, index)
         self._panel_rect = self._get_panel_rect(option)
-        self._last_bg_rect = option.rect
+        self._last_bg_rect = self._panel_rect
         self._last_content_rect = self._get_first_content_rect(option)
         self._contents_count = 0
         
@@ -390,11 +390,26 @@ class MainColumnDelegate(PanelItemDelegate):
         self.indent = 10
         self.tag_width = 6
         self.tag_paddings = [2, 0, 1, 0] # left, top, right, bottom
-        self.panel_paddings[0] = self.tag_width + self.tag_paddings[0] + self.tag_paddings[2]
         self.max_extend_icon_size = 16
         self.contents_paddings[0] = min(self.height * 0.5, self.max_extend_icon_size)
         self.text_align = QtCore.Qt.AlignVCenter | QtCore.Qt.AlignLeft
         self.inherit_color = True
+
+    def _get_panel_rect(self, option):
+        '''
+        パネル描画矩形を取得
+        元のものより一回り小さいものを返す
+        '''
+        indent = self.indent * self._depth
+
+        rect = QtCore.QRect(
+            option.rect.left() + self.panel_paddings[0] + self.tag_width + self.tag_paddings[0] + self.tag_paddings[2] + indent,
+            option.rect.top() + self.panel_paddings[1],
+            option.rect.width() - self.panel_paddings[2] - (self.tag_width + self.tag_paddings[0] + self.tag_paddings[2] + indent),
+            option.rect.height() - self.panel_paddings[3]
+        )
+
+        return rect
 
     def _get_color(self, index):
         color = color = index.data(QtCore.Qt.BackgroundRole)
@@ -525,19 +540,19 @@ class PaneledTreeView(QtWidgets.QTreeView):
         # self.setAutoExpandDelay(2)
         self.setEditTriggers(QtWidgets.QAbstractItemView.DoubleClicked)
         self.setSelectionMode(QtWidgets.QAbstractItemView.ExtendedSelection)
-        self.setAnimated(True)
+        # self.setAnimated(True)
         self.setStyleSheet(style)
 
         # デリゲート設定
         delegate = PanelItemDelegate()
         self.setItemDelegate(delegate)
         main_delegate = MainColumnDelegate()
+        # main_delegate = QtWidgets.QStyledItemDelegate()
         self.setItemDelegateForColumn(self.main_column, main_delegate)
-
 
     def setModel(self, model):
         super(PaneledTreeView, self).setModel(model)
-        self.set_headers()
+        # self.set_headers()
 
     def set_headers(self):
         header = self.header()
@@ -550,9 +565,6 @@ class PaneledTreeView(QtWidgets.QTreeView):
                 continue
 
             header.setSectionResizeMode(column, QtWidgets.QHeaderView.ResizeToContents)
-
-    # def resizeEvent(self, event):
-    #     super(PaneledTreeView, self).resizeEvent(event)
 
 def show():
     win = QtWidgets.QDialog(maya_win)
