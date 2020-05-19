@@ -4,7 +4,7 @@ import random
 from collections import OrderedDict
 from functools import partial
 import qtawesome
-from mayaqt import *
+from mayaqt import QtCore, QtGui, QtWidgets, maya_win, qt_cud_colors
 
 # アイコン定義
 dir_icon = qtawesome.icon('fa5s.{}'.format('folder'), color='lightgray')
@@ -405,7 +405,7 @@ class MainColumnDelegate(PanelItemDelegate):
             while True:
                 if not parent.isValid():
                     break
-                
+
                 color = parent.data(QtCore.Qt.BackgroundRole)
                 parent = parent.parent()
 
