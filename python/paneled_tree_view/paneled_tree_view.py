@@ -519,33 +519,34 @@ class PaneledTreeView(QtWidgets.QTreeView):
     def __init__(self, parent=None):
         super(PaneledTreeView, self).__init__(parent)
         self.show_row_number = True
+        self.main_column = 0
         self.setIndentation(0) 
         # self.setHeaderHidden(True)
+        # self.setAutoExpandDelay(2)
         self.setEditTriggers(QtWidgets.QAbstractItemView.DoubleClicked)
         self.setSelectionMode(QtWidgets.QAbstractItemView.ExtendedSelection)
+        self.setAnimated(True)
         self.setStyleSheet(style)
+
+        # デリゲート設定
         delegate = PanelItemDelegate()
         self.setItemDelegate(delegate)
-        # self.setAutoExpandDelay(2)
-        self.setAnimated(True)
+        main_delegate = MainColumnDelegate()
+        self.setItemDelegateForColumn(self.main_column, main_delegate)
+
 
     def setModel(self, model):
         super(PaneledTreeView, self).setModel(model)
         self.set_headers()
 
     def set_headers(self):
-        main_column = 0
         header = self.header()
         header.setDefaultAlignment(QtCore.Qt.AlignVCenter | QtCore.Qt.AlignHCenter)
         header.setStretchLastSection(False)
-        header.setSectionResizeMode(main_column, QtWidgets.QHeaderView.Stretch)
-
-        # メイン部分のみデリゲートを変更
-        main_delegate = MainColumnDelegate()
-        self.setItemDelegateForColumn(main_column, main_delegate)
+        header.setSectionResizeMode(self.main_column, QtWidgets.QHeaderView.Stretch)
 
         for column in range(header.count()):
-            if column == main_column:
+            if column == self.main_column:
                 continue
 
             header.setSectionResizeMode(column, QtWidgets.QHeaderView.ResizeToContents)
