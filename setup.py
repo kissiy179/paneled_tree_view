@@ -9,7 +9,7 @@ def _requires_from_file(filename):
     return open(filename).read().splitlines()
 
 setup(
-    name="paneled_tree_view"
+    name="paneled_tree_view",
     version="0.1.0",
     license="MIT",
     description=u"パネルぽいツリービュー",
