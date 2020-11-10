@@ -2,9 +2,12 @@
 
 REM ライブラリインストールパスを取得
 set LIB_PATH=%1
+set UPGRADE=
 
+REM インストールパスが取得できない場合デフォルトパスにする & アップグレードオプションON
 if "%LIB_PATH%"=="" (
     set LIB_PATH=.\Lib\site-packages
+    set UPGRADE=--upgrade
 )
 
 REM 遅延環境変数有効
@@ -40,10 +43,10 @@ if not %errorlevel%==0 (
 )
 
 REM pipアップデート
-call %MAYAPY_PATH% -m pip install -U pip
+call %MAYAPY_PATH% -m pip install --upgrade pip
 
 REM ------- パッケージインストール -------------------------
-call %MAYAPY_PATH% -m pip install -U -r requirements.txt -t %LIB_PATH%
+call %MAYAPY_PATH% -m pip install %UPGRADE% -r requirements.txt -t %LIB_PATH% --use-feature=2020-resolver
 
 goto end
 
