@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 import os
 from mayaqt import QtCore, QtGui, QtWidgets, maya_win, qt_cud_colors
-from . import paneled_tree_view
+import paneled_tree_view; reload(paneled_tree_view)
 
 def show():
     win = QtWidgets.QDialog(maya_win)
@@ -12,7 +12,7 @@ def show():
     model = paneled_tree_view.PanelItemModel()
 
     model = QtWidgets.QFileSystemModel()
-    root_dir = os.path.realpath(os.path.join(__file__, '..', '..', '..'))
+    root_dir = os.path.realpath(os.path.join(__file__, '..', '..'))
     index = model.setRootPath(root_dir)
 
     # model = QtCore.QStringListModel([str(i) for i in range(100)])
