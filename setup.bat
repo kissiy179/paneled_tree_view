@@ -1,23 +1,26 @@
 @echo off
 
-REM ライブラリインストールパスを取得
+@REM pythonが使うエンコードを指定
+set PYTHONIOENCODING=utf-8
+
+@REM ライブラリインストールパスを取得
 set LIB_PATH=%1
 set UPGRADE=
 
-REM インストールパスが取得できない場合デフォルトパスにする & アップグレードオプションON
+@REM インストールパスが取得できない場合デフォルトパスにする & アップグレードオプションON
 if "%LIB_PATH%"=="" (
     set LIB_PATH=.\Lib\site-packages
     set UPGRADE=--upgrade
 )
 
-REM 遅延環境変数有効
+@REM 遅延環境変数有効
 setlocal EnableDelayedExpansion
 
-REM MAYA_MODULE_PATHにカレントディレクトリを追加
+@REM MAYA_MODULE_PATHにカレントディレクトリを追加
 cd /d %~dp0
 Set MAYA_MODULE_PATH=%cd%;%MAYA_MODULE_PATH%
 
-REM ------- レジストリからMayaインストールフォルダ検索 -------------------------
+@REM ------- レジストリからMayaインストールフォルダ検索 -------------------------
 set MAYA_APP_PATH=null
 
 for /l %%v in (2030, -1, 2015) do (
@@ -26,31 +29,31 @@ for /l %%v in (2030, -1, 2015) do (
     if not !MAYA_APP_PATH!==null goto install_pip
 )
 
-REM Mayaが見つからなければそのまま終了
+@REM Mayaが見つからなければそのまま終了
 goto except
 
-REM ------- pipインストール -------------------------
+@REM ------- pipインストール -------------------------
 :install_pip
-REM mayapyのパスを取得
+@REM mayapyのパスを取得
 set MAYAPY_PATH="%MAYA_APP_PATH%bin\mayapy.exe"
 
-REM pipがインストールされているか確認
+@REM pipがインストールされているか確認
 call %MAYAPY_PATH% -m pip
 
-REM インストールされてなければインストール
+@REM インストールされてなければインストール
 if not %errorlevel%==0 (
-    curl https://bootstrap.pypa.io/get-pip.py | %MAYAPY_PATH%
+    curl https://bootstrap.pypa.io/2.7/get-pip.py | %MAYAPY_PATH%
 )
 
-REM pipアップデート
+@REM pipアップデート
 call %MAYAPY_PATH% -m pip install --upgrade pip
 
-REM ------- パッケージインストール -------------------------
+@REM ------- パッケージインストール -------------------------
 call %MAYAPY_PATH% -m pip install %UPGRADE% -r requirements.txt -t %LIB_PATH% --use-feature=2020-resolver
 
 goto end
 
-REM インストールされてない場合終了
+@REM インストールされてない場合終了
 :except
 echo Maya is not installed.
 pause
